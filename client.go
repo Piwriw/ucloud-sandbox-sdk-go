@@ -153,7 +153,7 @@ func (c *Client) ListSandboxes(ctx context.Context, query *SandboxQuery) *Pagina
 		}
 		if query != nil {
 			for k, v := range query.Metadata {
-				path += sep + "metadata." + url.QueryEscape(k) + "=" + url.QueryEscape(v)
+				path += sep + "metadata=" + url.QueryEscape(k) + "=" + url.QueryEscape(v)
 				sep = "&"
 			}
 			for _, s := range query.State {
