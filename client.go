@@ -153,11 +153,15 @@ func (c *Client) ListSandboxes(ctx context.Context, query *SandboxQuery) *Pagina
 		}
 		if query != nil {
 			for k, v := range query.Metadata {
-				path += sep + "metadata." + url.QueryEscape(k) + "=" + url.QueryEscape(v)
+				path += sep + "metadata=" + url.QueryEscape(k) + "=" + url.QueryEscape(v)
 				sep = "&"
 			}
-			for _, s := range query.State {
-				path += sep + "state=" + url.QueryEscape(string(s))
+			if len(query.State) > 0 {
+				stateStrs := make([]string, 0, len(query.State))
+				for _, s := range query.State {
+					stateStrs = append(stateStrs, url.QueryEscape(s))
+				}
+				path += sep + "state=" + strings.Join(stateStrs, ",")
 				sep = "&"
 			}
 		}
