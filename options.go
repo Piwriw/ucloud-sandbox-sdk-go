@@ -65,6 +65,10 @@ func applySandboxDefaults(c *sandboxConfig) {
 	if c.timeout == 0 {
 		c.timeout = DefaultSandboxTimeout
 	}
+	if c.secure == nil {
+		secure := true
+		c.secure = &secure
+	}
 }
 
 type commandConfig struct {
