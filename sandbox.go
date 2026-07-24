@@ -145,7 +145,7 @@ func (s *Sandbox) buildSignedURL(path, operation string, cfg *fileURLConfig) str
 
 func (s *Sandbox) GetMCPURL() string {
 	scheme := "https"
-	if s.client.config.Debug {
+	if s.client.config.Debug || s.client.config.InsecureHTTP {
 		scheme = "http"
 	}
 	return fmt.Sprintf("%s://%s/mcp", scheme, s.GetHost(MCPPort))

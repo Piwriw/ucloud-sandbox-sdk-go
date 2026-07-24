@@ -19,6 +19,7 @@ type ConnectionConfig struct {
 	AccessToken     string
 	Logger          Logger
 	InsecureSkipTLS bool
+	InsecureHTTP    bool
 }
 
 func (c *ConnectionConfig) GetHost(sandboxID, sandboxDomain string, port int) string {
@@ -33,7 +34,7 @@ func (c *ConnectionConfig) GetSandboxURL(sandboxID, sandboxDomain string) string
 		return c.SandboxURL
 	}
 	scheme := "https"
-	if c.Debug {
+	if c.Debug || c.InsecureHTTP {
 		scheme = "http"
 	}
 	return fmt.Sprintf("%s://%s", scheme, c.GetHost(sandboxID, sandboxDomain, EnvdPort))

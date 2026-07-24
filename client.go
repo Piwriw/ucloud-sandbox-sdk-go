@@ -21,11 +21,17 @@ func NewClient(apiDomain, apiKey string, opts ...ClientOption) *Client {
 	cfg := ConnectionConfig{
 		Domain:          apiDomain,
 		APIKey:          apiKey,
-		APIURL:          "https://api." + apiDomain,
 		InsecureSkipTLS: true,
 	}
 	for _, opt := range opts {
 		opt(&cfg)
+	}
+	if cfg.APIURL == "" {
+		scheme := "https"
+		if cfg.InsecureHTTP {
+			scheme = "http"
+		}
+		cfg.APIURL = scheme + "://api." + apiDomain
 	}
 	return &Client{config: cfg}
 }

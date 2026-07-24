@@ -116,7 +116,7 @@ func calculateFilesHash(src, dest, contextPath string) (string, error) {
 	}
 
 	h := sha256.New()
-	h.Write([]byte(fmt.Sprintf("COPY %s %s", src, dest)))
+	h.Write(fmt.Appendf(nil, "COPY %s %s", src, dest))
 
 	for _, rel := range files {
 		path := filepath.Join(contextPath, filepath.FromSlash(rel))
@@ -126,8 +126,8 @@ func calculateFilesHash(src, dest, contextPath string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		h.Write([]byte(fmt.Sprintf("%o", info.Mode())))
-		h.Write([]byte(fmt.Sprintf("%d", info.Size())))
+		h.Write(fmt.Appendf(nil, "%o", info.Mode()))
+		h.Write(fmt.Appendf(nil, "%d", info.Size()))
 
 		if info.Mode().IsRegular() {
 			content, err := os.ReadFile(path)

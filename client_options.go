@@ -10,6 +10,12 @@ func WithInsecureSkipTLS(skip bool) ClientOption {
 	return func(c *ConnectionConfig) { c.InsecureSkipTLS = skip }
 }
 
+// WithInsecureHTTP uses HTTP instead of HTTPS for control-plane and sandbox calls.
+// Sandbox filesystem and process RPC calls also use HTTP without TLS.
+func WithInsecureHTTP(insecure bool) ClientOption {
+	return func(c *ConnectionConfig) { c.InsecureHTTP = insecure }
+}
+
 // WithDebug routes sandbox traffic to localhost (for local envd debugging).
 func WithDebug(debug bool) ClientOption {
 	return func(c *ConnectionConfig) { c.Debug = debug }
