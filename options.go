@@ -12,6 +12,7 @@ type sandboxConfig struct {
 	template            string
 	timeout             int
 	metadata            map[string]string
+	manageBy            string
 	envVars             map[string]string
 	autoPause           *bool
 	secure              *bool
@@ -33,6 +34,12 @@ func WithTimeout(seconds int) SandboxOption {
 func WithMetadata(metadata map[string]string) SandboxOption {
 	return func(c *sandboxConfig) { c.metadata = metadata }
 }
+
+// WithManageBy identifies the product scenario managing the sandbox.
+func WithManageBy(manageBy string) SandboxOption {
+	return func(c *sandboxConfig) { c.manageBy = manageBy }
+}
+
 func WithEnvVars(envs map[string]string) SandboxOption {
 	return func(c *sandboxConfig) { c.envVars = envs }
 }
@@ -65,6 +72,17 @@ func applySandboxDefaults(c *sandboxConfig) {
 	if c.timeout == 0 {
 		c.timeout = DefaultSandboxTimeout
 	}
+
+	metadata := make(map[string]string, len(c.metadata)+1)
+	for key, value := range c.metadata {
+		metadata[key] = value
+	}
+	if c.manageBy != "" {
+		metadata[ManageByMetadataKey] = c.manageBy
+	} else if _, ok := metadata[ManageByMetadataKey]; !ok {
+		metadata[ManageByMetadataKey] = DefaultManageBy
+	}
+	c.metadata = metadata
 }
 
 type commandConfig struct {
