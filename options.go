@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"maps"
 	"time"
 )
 
@@ -12,6 +13,7 @@ type sandboxConfig struct {
 	template            string
 	timeout             int
 	metadata            map[string]string
+	manageBy            string
 	envVars             map[string]string
 	autoPause           *bool
 	secure              *bool
@@ -33,6 +35,12 @@ func WithTimeout(seconds int) SandboxOption {
 func WithMetadata(metadata map[string]string) SandboxOption {
 	return func(c *sandboxConfig) { c.metadata = metadata }
 }
+
+// WithManageBy identifies the product scenario managing the sandbox.
+func WithManageBy(manageBy string) SandboxOption {
+	return func(c *sandboxConfig) { c.manageBy = manageBy }
+}
+
 func WithEnvVars(envs map[string]string) SandboxOption {
 	return func(c *sandboxConfig) { c.envVars = envs }
 }
@@ -69,6 +77,21 @@ func applySandboxDefaults(c *sandboxConfig) {
 		secure := true
 		c.secure = &secure
 	}
+
+	manageBy := c.manageBy
+	if manageBy == "" {
+		manageBy = c.metadata[ManageByMetadataKey]
+	}
+	if manageBy == "" {
+		manageBy = DefaultManageBy
+	}
+
+	metadata := maps.Clone(c.metadata)
+	if metadata == nil {
+		metadata = make(map[string]string, 1)
+	}
+	metadata[ManageByMetadataKey] = manageBy
+	c.metadata = metadata
 }
 
 type commandConfig struct {
