@@ -1,6 +1,7 @@
 package sandbox
 
 import (
+	"maps"
 	"time"
 )
 
@@ -77,15 +78,19 @@ func applySandboxDefaults(c *sandboxConfig) {
 		c.secure = &secure
 	}
 
-	metadata := make(map[string]string, len(c.metadata)+1)
-	for key, value := range c.metadata {
-		metadata[key] = value
+	manageBy := c.manageBy
+	if manageBy == "" {
+		manageBy = c.metadata[ManageByMetadataKey]
 	}
-	if c.manageBy != "" {
-		metadata[ManageByMetadataKey] = c.manageBy
-	} else if _, ok := metadata[ManageByMetadataKey]; !ok {
-		metadata[ManageByMetadataKey] = DefaultManageBy
+	if manageBy == "" {
+		manageBy = DefaultManageBy
 	}
+
+	metadata := maps.Clone(c.metadata)
+	if metadata == nil {
+		metadata = make(map[string]string, 1)
+	}
+	metadata[ManageByMetadataKey] = manageBy
 	c.metadata = metadata
 }
 
