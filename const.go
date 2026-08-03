@@ -9,6 +9,10 @@ const (
 	DefaultCommandTimeout    = 60
 	DefaultSandboxTimeout    = 300
 	DefaultTemplate          = "base"
+	ManageByMetadataKey      = "manageby.sandbox.ucloudai.com"
+	DefaultManageBy          = "ucloud-sandbox-sdk-go"
+	ManageBySite             = "site"
+	ManageByCodeBox          = "codebox"
 
 	SDKVersion = "0.2.2"
 	AllTraffic = "0.0.0.0/0"
