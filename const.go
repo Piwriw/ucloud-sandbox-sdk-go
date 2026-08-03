@@ -13,6 +13,7 @@ const (
 	DefaultManageBy          = "ucloud-sandbox-sdk-go"
 	ManageBySite             = "site"
 	ManageByCodeBox          = "codebox"
+	ManageByUnknown          = "unknown"
 
 	SDKVersion = "0.2.2"
 	AllTraffic = "0.0.0.0/0"
@@ -25,3 +26,13 @@ var (
 	envdVersionMetrics        = [3]int{0, 1, 5}
 	envdVersionDiskMetrics    = [3]int{0, 2, 4}
 )
+
+// ParseManageBy resolves the manage-by scenario from sandbox metadata.
+func ParseManageBy(metadata map[string]string) string {
+	switch metadata[ManageByMetadataKey] {
+	case ManageBySite, ManageByCodeBox:
+		return metadata[ManageByMetadataKey]
+	default:
+		return ManageByUnknown
+	}
+}
