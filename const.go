@@ -9,11 +9,14 @@ const (
 	DefaultCommandTimeout    = 60
 	DefaultSandboxTimeout    = 300
 	DefaultTemplate          = "base"
-	ManageByMetadataKey      = "manageby.sandbox.ucloudai.com"
-	DefaultManageBy          = "ucloud-sandbox-sdk-go"
-	ManageBySite             = "site"
-	ManageByCodeBox          = "codebox"
-	ManageByUnknown          = "unknown"
+
+	ManageByMetadataKey = "manageby.sandbox.ucloudai.com"
+	ManageByUnknown     = "unknown"
+	DefaultManageBy     = "ucloud-sandbox-sdk-go"
+	ManageBySite        = "site"
+	ManageByCodeBox     = "codebox"
+	ManageByRagView     = "ragview"
+	ManageBySkillLab    = "skill-lab"
 
 	SDKVersion = "0.2.2"
 	AllTraffic = "0.0.0.0/0"
@@ -30,7 +33,7 @@ var (
 // ParseManageBy resolves the manage-by scenario from sandbox metadata.
 func ParseManageBy(metadata map[string]string) string {
 	switch metadata[ManageByMetadataKey] {
-	case ManageBySite, ManageByCodeBox:
+	case DefaultManageBy, ManageBySite, ManageByCodeBox, ManageByRagView, ManageBySkillLab:
 		return metadata[ManageByMetadataKey]
 	default:
 		return ManageByUnknown
