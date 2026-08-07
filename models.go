@@ -11,6 +11,7 @@ type SandboxInfo struct {
 	EndAt       time.Time         `json:"endAt"`
 	State       string            `json:"state"`
 	CPUCount    int               `json:"cpuCount"`
+	DiskSizeMB  int32             `json:"diskSizeMB"`
 	MemoryMB    int               `json:"memoryMB"`
 	EnvdVersion string            `json:"envdVersion"`
 }
