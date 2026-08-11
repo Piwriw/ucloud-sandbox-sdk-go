@@ -33,6 +33,9 @@ func NewClient(apiDomain, apiKey string, opts ...ClientOption) *Client {
 		}
 		cfg.APIURL = scheme + "://api." + apiDomain
 	}
+	if cfg.VolumeAPIURL == "" {
+		cfg.VolumeAPIURL = cfg.APIURL
+	}
 	return &Client{config: cfg}
 }
 
@@ -260,9 +263,16 @@ func (c *Client) doRequest(ctx context.Context, method, path string, body, resul
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	for key, value := range c.config.Headers {
+		req.Header.Set(key, value)
+	}
 	req.Header.Set("X-API-Key", c.config.APIKey)
 
-	resp, err := c.newSandboxHTTPClient().Do(req)
+	httpClient := c.newSandboxHTTPClient()
+	if c.config.RequestTimeout > 0 {
+		httpClient.Timeout = c.config.RequestTimeout
+	}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}

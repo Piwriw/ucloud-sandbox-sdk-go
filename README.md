@@ -1,6 +1,6 @@
 # ucloud-sandbox-sdk-go
 
-UCloud Sandbox 的 Go SDK，提供与 [E2B](https://e2b.dev) 兼容的沙箱控制面 API 封装：创建/连接沙箱、执行命令、文件操作、快照与模板管理等。
+UCloud Sandbox 的 Go SDK，提供与 [E2B](https://e2b.dev) 兼容的沙箱控制面 API 封装：创建/连接沙箱、执行命令、文件操作、持久化 Volume、快照与模板管理等。
 
 仓库地址：[github.com/ucloud/ucloud-sandbox-sdk-go](https://github.com/ucloud/ucloud-sandbox-sdk-go)
 

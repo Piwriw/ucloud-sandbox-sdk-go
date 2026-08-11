@@ -1,6 +1,9 @@
 package sandbox
 
-import "time"
+import (
+	"maps"
+	"time"
+)
 
 // ClientOption configures Client construction.
 type ClientOption func(*ConnectionConfig)
@@ -29,4 +32,15 @@ func WithRequestTimeout(timeout time.Duration) ClientOption {
 // WithAPIURL overrides the control-plane base URL (default https://api.{domain}).
 func WithAPIURL(url string) ClientOption {
 	return func(c *ConnectionConfig) { c.APIURL = url }
+}
+
+// WithVolumeAPIURL overrides the volume content API base URL.
+// By default, volume content calls use the control-plane API URL.
+func WithVolumeAPIURL(url string) ClientOption {
+	return func(c *ConnectionConfig) { c.VolumeAPIURL = url }
+}
+
+// WithHeaders adds headers to control-plane and volume content API requests.
+func WithHeaders(headers map[string]string) ClientOption {
+	return func(c *ConnectionConfig) { c.Headers = maps.Clone(headers) }
 }

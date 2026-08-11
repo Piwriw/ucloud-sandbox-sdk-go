@@ -12,6 +12,7 @@ type ConnectionConfig struct {
 	APIKey          string
 	Domain          string
 	APIURL          string
+	VolumeAPIURL    string
 	Debug           bool
 	RequestTimeout  time.Duration
 	Headers         map[string]string

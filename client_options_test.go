@@ -47,3 +47,16 @@ func TestWithAPIURLOverridesInsecureHTTPDefault(t *testing.T) {
 		t.Fatalf("APIURL = %q, want %q", got, want)
 	}
 }
+
+func TestWithVolumeAPIURL(t *testing.T) {
+	client := NewClient(
+		"example.com",
+		"key",
+		WithAPIURL("https://control.example.test"),
+		WithVolumeAPIURL("https://volume.example.test"),
+	)
+
+	if got, want := client.config.VolumeAPIURL, "https://volume.example.test"; got != want {
+		t.Fatalf("VolumeAPIURL = %q, want %q", got, want)
+	}
+}
