@@ -40,12 +40,23 @@ func NewClient(apiDomain, apiKey string, opts ...ClientOption) *Client {
 }
 
 func (c *Client) newSandboxHTTPClient() *http.Client {
+	baseTransport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		baseTransport = &http.Transport{Proxy: http.ProxyFromEnvironment}
+	}
+	transport := baseTransport.Clone()
+	transport.Proxy = http.ProxyFromEnvironment
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{}
+	} else {
+		transport.TLSClientConfig = transport.TLSClientConfig.Clone()
+	}
+	transport.TLSClientConfig.InsecureSkipVerify = c.config.InsecureSkipTLS //nolint:gosec
+	transport.DisableCompression = true
+
 	return &http.Client{
-		Timeout: 5 * time.Minute,
-		Transport: &http.Transport{
-			TLSClientConfig:    &tls.Config{InsecureSkipVerify: c.config.InsecureSkipTLS}, //nolint:gosec
-			DisableCompression: true,
-		},
+		Timeout:   5 * time.Minute,
+		Transport: transport,
 	}
 }
 
