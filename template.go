@@ -1,8 +1,11 @@
 package sandbox
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -10,11 +13,16 @@ import (
 type InstructionType string
 
 const (
-	InstructionCopy    InstructionType = "COPY"
-	InstructionRun     InstructionType = "RUN"
-	InstructionEnv     InstructionType = "ENV"
-	InstructionWorkdir InstructionType = "WORKDIR"
-	InstructionUser    InstructionType = "USER"
+	InstructionFrom       InstructionType = "FROM"
+	InstructionCopy       InstructionType = "COPY"
+	InstructionAdd        InstructionType = "ADD"
+	InstructionRun        InstructionType = "RUN"
+	InstructionEnv        InstructionType = "ENV"
+	InstructionArg        InstructionType = "ARG"
+	InstructionWorkdir    InstructionType = "WORKDIR"
+	InstructionUser       InstructionType = "USER"
+	InstructionEntrypoint InstructionType = "ENTRYPOINT"
+	InstructionCmd        InstructionType = "CMD"
 )
 
 type RegistryConfig struct {
@@ -122,6 +130,11 @@ func (t *TemplateBuilder) FromImage(image string, opts ...RegistryOption) *Templ
 	return t
 }
 
+// From sets the base image used by the template.
+func (t *TemplateBuilder) From(image string, opts ...RegistryOption) *TemplateBuilder {
+	return t.FromImage(image, opts...)
+}
+
 func (t *TemplateBuilder) FromTemplate(template string) *TemplateBuilder {
 	t.baseTemplate = template
 	t.baseImage = ""
@@ -180,6 +193,18 @@ func (t *TemplateBuilder) SetWorkdir(workdir string) *TemplateBuilder {
 
 func (t *TemplateBuilder) SetUser(user string) *TemplateBuilder {
 	t.addInstruction(Instruction{Type: InstructionUser, Args: []string{user}})
+	return t
+}
+
+// SetEntrypoint adds an ENTRYPOINT instruction to the template.
+func (t *TemplateBuilder) SetEntrypoint(command string) *TemplateBuilder {
+	t.addInstruction(Instruction{Type: InstructionEntrypoint, Args: []string{command}})
+	return t
+}
+
+// SetCmd adds a CMD instruction to the template.
+func (t *TemplateBuilder) SetCmd(command string) *TemplateBuilder {
+	t.addInstruction(Instruction{Type: InstructionCmd, Args: []string{command}})
 	return t
 }
 
@@ -298,4 +323,163 @@ func (t *TemplateBuilder) ToDockerfile() (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// FromDockerfile creates a template builder from a Dockerfile.
+func FromDockerfile(path string, opts ...TemplateBuilderOption) (*TemplateBuilder, error) {
+	return NewTemplate(opts...).FromDockerfile(path)
+}
+
+// FromDockerfile adds Dockerfile instructions to the builder.
+func (t *TemplateBuilder) FromDockerfile(path string) (*TemplateBuilder, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return t, fmt.Errorf("read Dockerfile %q: %w", path, err)
+	}
+
+	parsed := NewTemplate(WithFileContextPath(filepath.Dir(path)))
+	if err := parsed.parseDockerfile(string(content)); err != nil {
+		return t, fmt.Errorf("parse Dockerfile %q: %w", path, err)
+	}
+
+	t.baseImage = parsed.baseImage
+	t.baseTemplate = parsed.baseTemplate
+	t.registryConfig = parsed.registryConfig
+	t.startCmd = parsed.startCmd
+	t.readyCmd = parsed.readyCmd
+	t.instructions = parsed.instructions
+	t.fileContextPath = parsed.fileContextPath
+	return t, nil
+}
+
+// parseDockerfile parses Dockerfile content into the template builder.
+func (t *TemplateBuilder) parseDockerfile(content string) error {
+	lines := t.dockerfileLogicalLines(content)
+	seenFrom := false
+	for lineNo, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		name, args := t.dockerfileInstruction(line)
+		switch InstructionType(name) {
+		case InstructionFrom:
+			parts := strings.Fields(args)
+			if len(parts) != 1 || strings.HasPrefix(parts[0], "--") {
+				return fmt.Errorf("line %d: FROM requires exactly one image", lineNo)
+			}
+			if seenFrom {
+				return fmt.Errorf("line %d: multiple FROM instructions are not supported", lineNo)
+			}
+			t.FromImage(parts[0])
+			seenFrom = true
+		case InstructionRun:
+			if args == "" {
+				return fmt.Errorf("line %d: RUN requires a command", lineNo)
+			}
+			t.RunCmd(args)
+		case InstructionCopy, InstructionAdd:
+			parts, err := t.dockerfileArgs(args)
+			if err != nil || len(parts) < 2 {
+				return fmt.Errorf("line %d: %s requires source and destination", lineNo, name)
+			}
+			// COPY and ADD support multiple sources; the last argument is the
+			// destination and each preceding source becomes one template step.
+			for _, src := range parts[:len(parts)-1] {
+				t.Copy(src, parts[len(parts)-1])
+			}
+		case InstructionEnv, InstructionArg:
+			parts, err := t.dockerfileArgs(args)
+			if err != nil || len(parts) == 0 {
+				return fmt.Errorf("line %d: invalid %s instruction", lineNo, name)
+			}
+			if InstructionType(name) == InstructionEnv && len(parts) == 1 && !strings.Contains(parts[0], "=") {
+				return fmt.Errorf("line %d: invalid ENV instruction", lineNo)
+			}
+			envs := make(map[string]string)
+			if strings.Contains(parts[0], "=") {
+				for _, part := range parts {
+					key, value, ok := strings.Cut(part, "=")
+					if !ok || key == "" {
+						return fmt.Errorf("line %d: invalid %s assignment", lineNo, name)
+					}
+					envs[key] = value
+				}
+			} else if InstructionType(name) == InstructionArg && len(parts) == 1 {
+				envs[parts[0]] = ""
+			} else {
+				envs[parts[0]] = strings.Join(parts[1:], " ")
+			}
+			t.SetEnvs(envs)
+		case InstructionWorkdir:
+			if args == "" {
+				return fmt.Errorf("line %d: WORKDIR requires a path", lineNo)
+			}
+			t.SetWorkdir(args)
+		case InstructionUser:
+			if args == "" {
+				return fmt.Errorf("line %d: USER requires a user", lineNo)
+			}
+			t.SetUser(args)
+		case InstructionEntrypoint:
+			if args == "" {
+				return fmt.Errorf("line %d: ENTRYPOINT requires a command", lineNo)
+			}
+			t.SetEntrypoint(args)
+		case InstructionCmd:
+			if args == "" {
+				return fmt.Errorf("line %d: CMD requires a command", lineNo)
+			}
+			t.SetCmd(args)
+		default:
+			return fmt.Errorf("line %d: unsupported instruction %q", lineNo, name)
+		}
+	}
+	if !seenFrom {
+		return fmt.Errorf("FROM instruction is required")
+	}
+	return nil
+}
+
+// dockerfileLogicalLines joins continued Dockerfile lines.
+func (t *TemplateBuilder) dockerfileLogicalLines(content string) []string {
+	var lines []string
+	var current strings.Builder
+	scanner := bufio.NewScanner(strings.NewReader(content))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if strings.HasSuffix(line, "\\") {
+			current.WriteString(strings.TrimSpace(strings.TrimSuffix(line, "\\")))
+			current.WriteByte(' ')
+			continue
+		}
+		current.WriteString(line)
+		lines = append(lines, current.String())
+		current.Reset()
+	}
+	if current.Len() > 0 {
+		lines = append(lines, current.String())
+	}
+	return lines
+}
+
+// dockerfileInstruction splits an instruction into its name and arguments.
+func (t *TemplateBuilder) dockerfileInstruction(line string) (string, string) {
+	if i := strings.IndexAny(line, " \t"); i >= 0 {
+		return strings.ToUpper(line[:i]), strings.TrimSpace(line[i:])
+	}
+	return strings.ToUpper(line), ""
+}
+
+// dockerfileArgs parses shell-form or JSON-form instruction arguments.
+func (t *TemplateBuilder) dockerfileArgs(value string) ([]string, error) {
+	value = strings.TrimSpace(value)
+	if strings.HasPrefix(value, "[") {
+		var args []string
+		if err := json.Unmarshal([]byte(value), &args); err != nil {
+			return nil, err
+		}
+		return args, nil
+	}
+	return strings.Fields(value), nil
 }
