@@ -35,8 +35,6 @@ CMD ["--port", "8080"]
 		{Type: InstructionCopy, Args: []string{".", "/app"}},
 		{Type: InstructionRun, Args: []string{"go build -o server ."}},
 		{Type: InstructionUser, Args: []string{"app"}},
-		{Type: InstructionEntrypoint, Args: []string{"./server"}},
-		{Type: InstructionCmd, Args: []string{"--port 8080"}},
 	}
 	if !reflect.DeepEqual(builder.instructions, want) {
 		t.Errorf("instructions = %#v, want %#v", builder.instructions, want)
@@ -60,11 +58,8 @@ func TestParseDockerfileSupportsContinuationAndCaseInsensitiveInstructions(t *te
 	if got, want := builder.instructions[0].Args[0], "apk add --no-cache \t\tca-certificates"; got != want {
 		t.Errorf("continued RUN command = %q, want %q", got, want)
 	}
-	if got, want := builder.instructions[1].Type, InstructionEntrypoint; got != want {
-		t.Errorf("entrypoint type = %q, want %q", got, want)
-	}
-	if got, want := builder.instructions[2].Type, InstructionCmd; got != want {
-		t.Errorf("cmd type = %q, want %q", got, want)
+	if got, want := builder.startCmd, "-c 'echo ready'"; got != want {
+		t.Errorf("start command = %q, want %q", got, want)
 	}
 }
 
@@ -91,11 +86,12 @@ func TestParseDockerfileParsesShellFormsAndSortsEnvironmentVariables(t *testing.
 		{Type: InstructionWorkdir, Args: []string{"/app"}},
 		{Type: InstructionUser, Args: []string{"1000:1000"}},
 		{Type: InstructionRun, Args: []string{"echo ready"}},
-		{Type: InstructionEntrypoint, Args: []string{"/bin/sh -c"}},
-		{Type: InstructionCmd, Args: []string{"echo hello"}},
 	}
 	if !reflect.DeepEqual(builder.instructions, want) {
 		t.Errorf("instructions = %#v, want %#v", builder.instructions, want)
+	}
+	if got, want := builder.startCmd, "echo hello"; got != want {
+		t.Errorf("start command = %q, want %q", got, want)
 	}
 }
 
@@ -315,8 +311,6 @@ func TestParseDockerfilePreservesQuotedValuesAndCommands(t *testing.T) {
 	want := []Instruction{
 		{Type: InstructionEnv, Args: []string{"DESCRIPTION", "\"a value with spaces\"", "GREETING", "hello\\ world"}},
 		{Type: InstructionRun, Args: []string{"printf '%s\\n' \"$GREETING\""}},
-		{Type: InstructionEntrypoint, Args: []string{"/bin/sh -c echo $GREETING"}},
-		{Type: InstructionCmd, Args: []string{"--verbose true"}},
 	}
 	if !reflect.DeepEqual(builder.instructions, want) {
 		t.Errorf("instructions = %#v, want %#v", builder.instructions, want)
