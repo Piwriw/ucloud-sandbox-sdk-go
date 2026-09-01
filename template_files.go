@@ -29,9 +29,9 @@ func (t *TemplateBuilder) Copy(src, dest string) *TemplateBuilder {
 }
 
 func (t *TemplateBuilder) prepareSteps() ([]Instruction, error) {
-	steps := append([]Instruction(nil), t.instructions...)
+	steps := t.supportedBuildSteps()
 	for i, inst := range steps {
-		if inst.Type != InstructionCopy {
+		if inst.Type != InstructionCopy && inst.Type != InstructionAdd {
 			continue
 		}
 		if len(inst.Args) < 2 {
@@ -47,6 +47,19 @@ func (t *TemplateBuilder) prepareSteps() ([]Instruction, error) {
 		steps[i].FilesHash = hash
 	}
 	return steps, nil
+}
+
+// supportedBuildSteps returns the build steps supported by the template builder.
+func (t *TemplateBuilder) supportedBuildSteps() []Instruction {
+	steps := make([]Instruction, 0, len(t.instructions))
+	for _, inst := range t.instructions {
+		switch inst.Type {
+		case InstructionCopy, InstructionAdd, InstructionRun, InstructionUser,
+			InstructionWorkdir, InstructionEnv, InstructionArg:
+			steps = append(steps, inst)
+		}
+	}
+	return steps
 }
 
 func validateRelativeCopyPath(src string) error {

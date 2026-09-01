@@ -200,18 +200,6 @@ func (t *TemplateBuilder) SetUser(user string) *TemplateBuilder {
 	return t
 }
 
-// SetEntrypoint adds an ENTRYPOINT instruction to the template.
-func (t *TemplateBuilder) SetEntrypoint(command string) *TemplateBuilder {
-	t.addInstruction(Instruction{Type: InstructionEntrypoint, Args: []string{command}})
-	return t
-}
-
-// SetCmd adds a CMD instruction to the template.
-func (t *TemplateBuilder) SetCmd(command string) *TemplateBuilder {
-	t.addInstruction(Instruction{Type: InstructionCmd, Args: []string{command}})
-	return t
-}
-
 func (t *TemplateBuilder) SkipCache() *TemplateBuilder {
 	t.forceNextLayer = true
 	return t
@@ -456,12 +444,12 @@ func (t *TemplateBuilder) parseDockerfile(r io.Reader) error {
 			if len(args) == 0 {
 				return fmt.Errorf("line %d: ENTRYPOINT requires a command", lineNo)
 			}
-			t.SetEntrypoint(dockerfileCommand(args))
+			t.SetStartCmd(dockerfileCommand(args), ReadyCmd{})
 		case InstructionCmd:
 			if len(args) == 0 {
 				return fmt.Errorf("line %d: CMD requires a command", lineNo)
 			}
-			t.SetCmd(dockerfileCommand(args))
+			t.SetStartCmd(dockerfileCommand(args), ReadyCmd{})
 		default:
 			log.Printf("warning: unsupported Dockerfile instruction %q on line %d", name, lineNo)
 		}
