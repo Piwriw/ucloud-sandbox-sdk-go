@@ -1,20 +1,32 @@
 package sandbox
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
+
+	dockerfileparser "github.com/moby/buildkit/frontend/dockerfile/parser"
 )
 
 type InstructionType string
 
 const (
-	InstructionCopy    InstructionType = "COPY"
-	InstructionRun     InstructionType = "RUN"
-	InstructionEnv     InstructionType = "ENV"
-	InstructionWorkdir InstructionType = "WORKDIR"
-	InstructionUser    InstructionType = "USER"
+	InstructionFrom       InstructionType = "FROM"
+	InstructionCopy       InstructionType = "COPY"
+	InstructionAdd        InstructionType = "ADD"
+	InstructionRun        InstructionType = "RUN"
+	InstructionEnv        InstructionType = "ENV"
+	InstructionArg        InstructionType = "ARG"
+	InstructionWorkdir    InstructionType = "WORKDIR"
+	InstructionUser       InstructionType = "USER"
+	InstructionEntrypoint InstructionType = "ENTRYPOINT"
+	InstructionCmd        InstructionType = "CMD"
 )
 
 type RegistryConfig struct {
@@ -122,6 +134,11 @@ func (t *TemplateBuilder) FromImage(image string, opts ...RegistryOption) *Templ
 	return t
 }
 
+// From sets the base image used by the template.
+func (t *TemplateBuilder) From(image string, opts ...RegistryOption) *TemplateBuilder {
+	return t.FromImage(image, opts...)
+}
+
 func (t *TemplateBuilder) FromTemplate(template string) *TemplateBuilder {
 	t.baseTemplate = template
 	t.baseImage = ""
@@ -180,6 +197,18 @@ func (t *TemplateBuilder) SetWorkdir(workdir string) *TemplateBuilder {
 
 func (t *TemplateBuilder) SetUser(user string) *TemplateBuilder {
 	t.addInstruction(Instruction{Type: InstructionUser, Args: []string{user}})
+	return t
+}
+
+// SetEntrypoint adds an ENTRYPOINT instruction to the template.
+func (t *TemplateBuilder) SetEntrypoint(command string) *TemplateBuilder {
+	t.addInstruction(Instruction{Type: InstructionEntrypoint, Args: []string{command}})
+	return t
+}
+
+// SetCmd adds a CMD instruction to the template.
+func (t *TemplateBuilder) SetCmd(command string) *TemplateBuilder {
+	t.addInstruction(Instruction{Type: InstructionCmd, Args: []string{command}})
 	return t
 }
 
@@ -261,6 +290,22 @@ func (t *TemplateBuilder) ToDockerfile() (string, error) {
 				buf.WriteString(inst.Args[1])
 				buf.WriteString("\n")
 			}
+		case InstructionAdd:
+			if len(inst.Args) >= 2 {
+				buf.WriteString("ADD ")
+				buf.WriteString(strings.Join(inst.Args, " "))
+				buf.WriteString("\n")
+			}
+		case InstructionArg:
+			if len(inst.Args) > 0 {
+				buf.WriteString("ARG ")
+				buf.WriteString(inst.Args[0])
+				if len(inst.Args) > 1 {
+					buf.WriteString("=")
+					buf.WriteString(inst.Args[1])
+				}
+				buf.WriteString("\n")
+			}
 		case InstructionEnv:
 			var pairs []string
 			for i := 0; i+1 < len(inst.Args); i += 2 {
@@ -298,4 +343,193 @@ func (t *TemplateBuilder) ToDockerfile() (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+// FromDockerfile creates a template builder from a Dockerfile.
+func FromDockerfile(path string, opts ...TemplateBuilderOption) (*TemplateBuilder, error) {
+	return NewTemplate(opts...).FromDockerfile(path)
+}
+
+// FromDockerfile adds Dockerfile instructions to the builder.
+func (t *TemplateBuilder) FromDockerfile(path string) (*TemplateBuilder, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return t, fmt.Errorf("read Dockerfile %q: %w", path, err)
+	}
+
+	parsed := NewTemplate(WithFileContextPath(filepath.Dir(path)))
+	if err := parsed.parseDockerfile(bytes.NewReader(content)); err != nil {
+		return t, fmt.Errorf("parse Dockerfile %q: %w", path, err)
+	}
+
+	t.baseImage = parsed.baseImage
+	t.baseTemplate = parsed.baseTemplate
+	t.registryConfig = parsed.registryConfig
+	t.startCmd = parsed.startCmd
+	t.readyCmd = parsed.readyCmd
+	t.instructions = parsed.instructions
+	t.fileContextPath = parsed.fileContextPath
+	return t, nil
+}
+
+// parseDockerfile parses Dockerfile content into the template builder.
+func (t *TemplateBuilder) parseDockerfile(r io.Reader) error {
+	result, err := dockerfileparser.Parse(r)
+	if err != nil {
+		return err
+	}
+
+	seenFrom := false
+	for _, node := range result.AST.Children {
+		name := strings.ToUpper(node.Value)
+		lineNo := node.StartLine
+		args := dockerfileNodeArgs(node)
+		switch InstructionType(name) {
+		case InstructionFrom:
+			if len(args) < 1 || (len(args) != 1 && !(len(args) == 3 && strings.EqualFold(args[1], "AS"))) {
+				return fmt.Errorf("line %d: FROM requires exactly one image", lineNo)
+			}
+			if seenFrom {
+				return fmt.Errorf("line %d: multiple FROM instructions are not supported", lineNo)
+			}
+			if strings.EqualFold(args[0], "base") {
+				t.FromBaseImage()
+			} else {
+				t.FromImage(args[0])
+			}
+			seenFrom = true
+		case InstructionRun:
+			if len(args) == 0 {
+				return fmt.Errorf("line %d: RUN requires a command", lineNo)
+			}
+			t.RunCmd(dockerfileCommand(args))
+		case InstructionCopy, InstructionAdd:
+			if len(args) < 2 {
+				return fmt.Errorf("line %d: %s requires source and destination", lineNo, name)
+			}
+			for _, src := range args[:len(args)-1] {
+				instArgs := []string{src, args[len(args)-1]}
+				if user := dockerfileChown(node); user != "" {
+					instArgs = append(instArgs, user)
+				}
+				t.addInstruction(Instruction{Type: InstructionCopy, Args: instArgs})
+			}
+		case InstructionEnv:
+			if len(args) == 0 {
+				return fmt.Errorf("line %d: invalid %s instruction", lineNo, name)
+			}
+			if InstructionType(name) == InstructionEnv && len(args) < 2 {
+				return fmt.Errorf("line %d: invalid ENV instruction", lineNo)
+			}
+			envs, err := dockerfileEnvArgs(node, args)
+			if err != nil {
+				return fmt.Errorf("line %d: %w", lineNo, err)
+			}
+			t.SetEnvs(envs)
+		case InstructionArg:
+			if len(args) == 0 {
+				return fmt.Errorf("line %d: invalid ARG instruction", lineNo)
+			}
+			for _, arg := range args {
+				key, value, hasValue := strings.Cut(arg, "=")
+				if key == "" || strings.ContainsAny(key, " \t") {
+					return fmt.Errorf("line %d: invalid ARG assignment", lineNo)
+				}
+				instructionArgs := []string{key}
+				if hasValue {
+					instructionArgs = append(instructionArgs, value)
+				}
+				t.addInstruction(Instruction{Type: InstructionArg, Args: instructionArgs})
+			}
+
+		case InstructionWorkdir:
+			if len(args) == 0 {
+				return fmt.Errorf("line %d: WORKDIR requires a path", lineNo)
+			}
+			t.SetWorkdir(args[0])
+		case InstructionUser:
+			if len(args) == 0 {
+				return fmt.Errorf("line %d: USER requires a user", lineNo)
+			}
+			t.SetUser(args[0])
+		case InstructionEntrypoint:
+			if len(args) == 0 {
+				return fmt.Errorf("line %d: ENTRYPOINT requires a command", lineNo)
+			}
+			t.SetEntrypoint(dockerfileCommand(args))
+		case InstructionCmd:
+			if len(args) == 0 {
+				return fmt.Errorf("line %d: CMD requires a command", lineNo)
+			}
+			t.SetCmd(dockerfileCommand(args))
+		default:
+			log.Printf("warning: unsupported Dockerfile instruction %q on line %d", name, lineNo)
+		}
+	}
+	if !seenFrom {
+		return fmt.Errorf("FROM instruction is required")
+	}
+	return nil
+}
+
+// dockerfileNodeArgs returns the arguments from a parsed Dockerfile node.
+func dockerfileNodeArgs(node *dockerfileparser.Node) []string {
+	var args []string
+	for arg := node.Next; arg != nil; arg = arg.Next {
+		args = append(args, arg.Value)
+	}
+	return args
+}
+
+// dockerfileEnvArgs parses ENV or ARG arguments into environment values.
+func dockerfileEnvArgs(node *dockerfileparser.Node, args []string) (map[string]string, error) {
+	envs := make(map[string]string)
+	if strings.EqualFold(node.Value, "ARG") {
+		for _, arg := range args {
+			key, value, hasValue := strings.Cut(arg, "=")
+			if key == "" || strings.ContainsAny(key, " \t") {
+				return nil, fmt.Errorf("invalid ARG assignment")
+			}
+			if !hasValue {
+				value = ""
+			}
+			envs[key] = value
+		}
+		return envs, nil
+	}
+
+	// BuildKit represents ENV key=value pairs as key, value, "=" triples.
+	if len(args) == 3 && args[2] == "" {
+		envs[args[0]] = args[1]
+		return envs, nil
+	}
+	if len(args) == 2 {
+		envs[args[0]] = args[1]
+		return envs, nil
+	}
+	if len(args)%3 != 0 {
+		return nil, fmt.Errorf("invalid ENV assignment")
+	}
+	for i := 0; i < len(args); i += 3 {
+		if args[i] == "" || args[i+2] != "=" {
+			return nil, fmt.Errorf("invalid ENV assignment")
+		}
+		envs[args[i]] = args[i+1]
+	}
+	return envs, nil
+}
+
+// dockerfileCommand joins parsed Dockerfile command arguments.
+func dockerfileCommand(args []string) string {
+	return strings.Join(args, " ")
+}
+
+// dockerfileChown returns the chown value from a Dockerfile instruction flag.
+func dockerfileChown(node *dockerfileparser.Node) string {
+	for _, flag := range node.Flags {
+		if strings.HasPrefix(strings.ToLower(flag), "--chown=") {
+			return flag[len("--chown="):]
+		}
+	}
+	return ""
 }
