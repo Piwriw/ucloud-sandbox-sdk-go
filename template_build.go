@@ -50,12 +50,13 @@ type LogEntry struct {
 func (e LogEntry) String() string { return e.Message }
 
 type buildConfig struct {
-	tags        []string
-	cpuCount    int
-	memoryMB    int
-	skipCache   bool
-	publish     bool
-	onBuildLogs func(LogEntry)
+	tags              []string
+	cpuCount          int
+	memoryMB          int
+	skipCache         bool
+	publish           bool
+	onBuildLogs       func(LogEntry)
+	fromImageRegistry *RegistryConfig
 }
 
 type BuildOption func(*buildConfig)
@@ -82,6 +83,18 @@ func WithOnBuildLogs(fn func(LogEntry)) BuildOption {
 
 func WithPublishTemplate() BuildOption {
 	return func(c *buildConfig) { c.publish = true }
+}
+
+// WithBuildFromImageRegistry sets credentials for pulling the base image from a
+// private registry. The registry type defaults to "registry".
+func WithBuildFromImageRegistry(username, password string) BuildOption {
+	return func(c *buildConfig) {
+		c.fromImageRegistry = &RegistryConfig{
+			Type:     "registry",
+			Username: username,
+			Password: password,
+		}
+	}
 }
 
 func DefaultBuildLogger() func(LogEntry) {
@@ -138,6 +151,9 @@ func (c *Client) BuildTemplate(ctx context.Context, template *TemplateBuilder, n
 	data.Steps = steps
 	if cfg.skipCache {
 		data.Force = true
+	}
+	if cfg.fromImageRegistry != nil {
+		data.FromImageRegistry = cfg.fromImageRegistry
 	}
 
 	emitBuildLog(cfg, LogEntry{
