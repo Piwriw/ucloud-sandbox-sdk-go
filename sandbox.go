@@ -96,9 +96,13 @@ func (s *Sandbox) GetHost(port int) string {
 	return s.client.config.GetHost(s.ID, s.SandboxDomain, port)
 }
 
-func (s *Sandbox) CreateSnapshot(ctx context.Context) (*SnapshotInfo, error) {
+func (s *Sandbox) CreateSnapshot(ctx context.Context, opts ...SnapshotOption) (*SnapshotInfo, error) {
+	cfg := &snapshotConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
 	var resp snapshotResponse
-	if err := s.client.doRequest(ctx, http.MethodPost, "/sandboxes/"+s.ID+"/snapshots", snapshotRequest{}, &resp); err != nil {
+	if err := s.client.doRequest(ctx, http.MethodPost, "/sandboxes/"+s.ID+"/snapshots", snapshotRequest{Name: cfg.name}, &resp); err != nil {
 		return nil, err
 	}
 	return &SnapshotInfo{SnapshotID: resp.SnapshotID}, nil

@@ -107,8 +107,8 @@ type commandConfig struct {
 
 type CommandOption func(*commandConfig)
 
-func WithCwd(cwd string) CommandOption    { return func(c *commandConfig) { c.cwd = cwd } }
-func WithUser(user string) CommandOption  { return func(c *commandConfig) { c.user = user } }
+func WithCwd(cwd string) CommandOption   { return func(c *commandConfig) { c.cwd = cwd } }
+func WithUser(user string) CommandOption { return func(c *commandConfig) { c.user = user } }
 func WithCommandEnvVars(envs map[string]string) CommandOption {
 	return func(c *commandConfig) { c.envVars = envs }
 }
@@ -174,3 +174,13 @@ type MetricsOption func(*metricsConfig)
 
 func WithMetricsStart(t time.Time) MetricsOption { return func(c *metricsConfig) { c.start = t } }
 func WithMetricsEnd(t time.Time) MetricsOption   { return func(c *metricsConfig) { c.end = t } }
+
+type snapshotConfig struct {
+	name string
+}
+
+type SnapshotOption func(*snapshotConfig)
+
+func WithSnapshotName(name string) SnapshotOption {
+	return func(c *snapshotConfig) { c.name = name }
+}
