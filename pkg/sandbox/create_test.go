@@ -305,3 +305,9 @@ func TestForkReportsEachOutcomeSeparately(t *testing.T) {
 	require.Error(t, results[1].Err)
 	assert.Contains(t, results[1].Err.Error(), "no capacity")
 }
+
+// decodeBody reads a request's JSON body into target.
+func decodeBody(t *testing.T, r *http.Request, target any) {
+	t.Helper()
+	require.NoError(t, json.NewDecoder(r.Body).Decode(target))
+}
