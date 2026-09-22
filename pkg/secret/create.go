@@ -14,16 +14,14 @@ import (
 // value is write-only: it is never returned by this or any other call.
 //
 // POST /secrets
-func (s *Service) Create(ctx context.Context, name, value string, opts ...CreateOptions) (*Info, error) {
+func (s *Service) Create(ctx context.Context, name, value string, opts CreateOptions) (*Info, error) {
 	if err := ValidateName(name); err != nil {
 		return nil, err
 	}
-	opt := first(opts)
-
 	body := api.PostSecretsJSONRequestBody{
 		Name:     name,
 		Value:    value,
-		Metadata: metadataFor(opt.Metadata),
+		Metadata: metadataFor(opts.Metadata),
 	}
 
 	resp, err := s.t.API().PostSecretsWithResponse(ctx, body)

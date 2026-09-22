@@ -95,7 +95,7 @@ func TestCreateOmitsUnsetMetadata(t *testing.T) {
 		writeJSON(t, w, http.StatusCreated, secretJSON("sec_1", "k", 1, nil))
 	}))
 
-	_, err := svc.Create(context.Background(), "k", "v")
+	_, err := svc.Create(context.Background(), "k", "v", CreateOptions{})
 	require.NoError(t, err)
 
 	// Leaving metadata unset must not send an empty map, which would clear
@@ -111,7 +111,7 @@ func TestCreateRejectsBadNameBeforeSending(t *testing.T) {
 	}))
 
 	for _, name := range []string{"", "has space", "has/slash", "has{brace}"} {
-		_, err := svc.Create(context.Background(), name, "v")
+		_, err := svc.Create(context.Background(), name, "v", CreateOptions{})
 		assert.ErrorIs(t, err, errdefs.ErrInvalidArgument, "name %q", name)
 	}
 	assert.False(t, called, "an invalid name should not reach the server")
@@ -155,7 +155,7 @@ func TestUpdate(t *testing.T) {
 		writeJSON(t, w, http.StatusOK, secretJSON("sec_1", "openai-key", 2, nil))
 	}))
 
-	info, err := svc.Update(context.Background(), "sec_1", "sk-rotated")
+	info, err := svc.Update(context.Background(), "sec_1", "sk-rotated", UpdateOptions{})
 	require.NoError(t, err)
 
 	assert.Equal(t, http.MethodPost, gotMethod, "update is a POST, not a PUT or PATCH")
@@ -293,7 +293,7 @@ func TestListStopsWithoutCursor(t *testing.T) {
 		writeJSON(t, w, http.StatusOK, []map[string]any{secretJSON("sec_1", "a", 1, nil)})
 	}))
 
-	all, err := svc.List(context.Background()).All(context.Background())
+	all, err := svc.List(context.Background(), ListOptions{}).All(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, all, 1)
 	assert.Equal(t, 1, calls, "a page without a cursor ends the listing")

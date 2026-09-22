@@ -14,12 +14,10 @@ import (
 // write-only.
 //
 // POST /secrets/{secretID}
-func (s *Service) Update(ctx context.Context, secret, value string, opts ...UpdateOptions) (*Info, error) {
-	opt := first(opts)
-
+func (s *Service) Update(ctx context.Context, secret, value string, opts UpdateOptions) (*Info, error) {
 	body := api.PostSecretsSecretIDJSONRequestBody{
 		Value:    value,
-		Metadata: metadataFor(opt.Metadata),
+		Metadata: metadataFor(opts.Metadata),
 	}
 
 	resp, err := s.t.API().PostSecretsSecretIDWithResponse(ctx, secret, body)

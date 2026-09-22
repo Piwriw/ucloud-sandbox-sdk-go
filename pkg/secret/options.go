@@ -21,13 +21,3 @@ type ListOptions struct {
 	// choose; it caps the value at 100.
 	Limit int
 }
-
-// first returns the single options value a variadic options parameter may
-// carry, or the zero value when none was given.
-func first[T any](opts []T) T {
-	var zero T
-	if len(opts) == 0 {
-		return zero
-	}
-	return opts[0]
-}

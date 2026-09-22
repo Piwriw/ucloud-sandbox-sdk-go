@@ -5,7 +5,7 @@
 // name, using the placeholder Fill produces:
 //
 //	secrets := c.Secrets()
-//	if _, err := secrets.Create(ctx, "openai-key", apiKey); err != nil { ... }
+//	if _, err := secrets.Create(ctx, "openai-key", apiKey, secret.CreateOptions{}); err != nil { ... }
 //
 //	sbx, err := c.Sandboxes().Create(ctx, sandbox.CreateOptions{
 //	    EnvVars: map[string]string{
