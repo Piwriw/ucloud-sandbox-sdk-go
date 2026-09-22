@@ -42,15 +42,11 @@ type Config struct {
 	// "http://10.10.0.5:8080".
 	APIURL string
 
-	// VolumeAPIURL is the base URL for volume content operations. Defaults to
-	// the control-plane URL.
-	VolumeAPIURL string
-
 	// SandboxURL pins the URL used to reach sandboxes, instead of deriving one
 	// per sandbox from its ID and domain.
 	SandboxURL string
 
-	// Headers are added to every control-plane and volume request.
+	// Headers are added to every control-plane request.
 	Headers map[string]string
 
 	// RequestTimeout bounds a single control-plane request. Zero means the
@@ -86,7 +82,6 @@ type resolved struct {
 	region          string
 	domain          string
 	apiURL          string
-	volumeAPIURL    string
 	sandboxURL      string
 	headers         map[string]string
 	requestTimeout  time.Duration
@@ -131,8 +126,6 @@ func (c Config) resolve() (resolved, error) {
 		r.apiURL = r.scheme() + "://api." + r.domain
 	}
 	r.apiURL = strings.TrimRight(r.apiURL, "/")
-
-	r.volumeAPIURL = strings.TrimRight(firstNonEmpty(c.VolumeAPIURL, r.apiURL), "/")
 
 	return r, nil
 }

@@ -160,26 +160,6 @@ func TestResolveAPIKey(t *testing.T) {
 	})
 }
 
-func TestResolveVolumeAPIURL(t *testing.T) {
-	clearEnv(t)
-
-	t.Run("defaults to the control-plane url", func(t *testing.T) {
-		got, err := Config{APIKey: "k", APIURL: "http://api.example"}.resolve()
-		require.NoError(t, err)
-		assert.Equal(t, "http://api.example", got.volumeAPIURL)
-	})
-
-	t.Run("overridden independently", func(t *testing.T) {
-		got, err := Config{
-			APIKey:       "k",
-			APIURL:       "http://api.example",
-			VolumeAPIURL: "http://volumes.example/",
-		}.resolve()
-		require.NoError(t, err)
-		assert.Equal(t, "http://volumes.example", got.volumeAPIURL)
-	})
-}
-
 func TestResolveRetries(t *testing.T) {
 	clearEnv(t)
 

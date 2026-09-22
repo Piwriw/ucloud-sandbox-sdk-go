@@ -23,7 +23,7 @@ import (
 )
 
 // defaultRequestTimeout bounds a control-plane request when Config leaves
-// RequestTimeout unset. Generous, because template builds and volume transfers
+// RequestTimeout unset. Generous, because template builds and file transfers
 // share this client.
 const defaultRequestTimeout = 5 * time.Minute
 
@@ -117,7 +117,7 @@ func (c *Client) authorize(_ context.Context, req *http.Request) error {
 func (c *Client) API() *api.ClientWithResponses { return c.api }
 
 // HTTPClient returns the shared HTTP client, for the surfaces that are not
-// described by the control-plane spec: envd and volume content.
+// described by the control-plane spec, namely envd.
 func (c *Client) HTTPClient() *http.Client { return c.http }
 
 // APIKey returns the resolved API key.
@@ -131,9 +131,6 @@ func (c *Client) Domain() string { return c.cfg.domain }
 
 // APIURL returns the resolved control-plane base URL, without a trailing slash.
 func (c *Client) APIURL() string { return c.cfg.apiURL }
-
-// VolumeAPIURL returns the base URL for volume content operations.
-func (c *Client) VolumeAPIURL() string { return c.cfg.volumeAPIURL }
 
 // Headers returns the extra headers added to every request. The returned map
 // must not be modified.
