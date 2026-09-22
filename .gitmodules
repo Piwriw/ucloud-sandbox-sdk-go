@@ -1,0 +1,6 @@
+[submodule "submodules/ucloud-sandbox-sdk-python"]
+	path = submodules/ucloud-sandbox-sdk-python
+	url = https://github.com/ucloud/ucloud-sandbox-sdk-python.git
+[submodule "submodules/e2b-runtime"]
+	path = submodules/e2b-runtime
+	url = https://github.com/e2b-dev/runtime.git

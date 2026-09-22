@@ -1,0 +1,12 @@
+# Generated types for the control-plane API.
+# Paired with api.client.cfg.yaml, which emits the client into the same package.
+#
+# The input spec and the output path are passed on the command line by the
+# Makefile, because the generators run from ./tools (a separate module) and any
+# path written here would be relative to that directory.
+package: api
+generate:
+  models: true
+  embedded-spec: false
+output-options:
+  skip-prune: true

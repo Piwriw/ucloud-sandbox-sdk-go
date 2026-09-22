@@ -1,0 +1,22 @@
+# Generates the envd connect-rpc client from the e2b-runtime submodule's protos.
+# Run from the repository root via `make generate`.
+#
+# `out: .` is relative to buf's -o flag, which the Makefile points at pkg/envd.
+# The plugins are invoked through `go tool`, so they resolve from the tools
+# module's tool directives and need nothing on PATH.
+version: v2
+plugins:
+  - local: ["go", "tool", "protoc-gen-go"]
+    out: .
+    opt: paths=source_relative
+  - local: ["go", "tool", "protoc-gen-connect-go"]
+    out: .
+    opt: paths=source_relative
+
+managed:
+  enabled: true
+  override:
+    - file_option: go_package_prefix
+      value: github.com/ucloud/ucloud-sandbox-sdk-go/pkg/envd
+    - file_option: optimize_for
+      value: SPEED

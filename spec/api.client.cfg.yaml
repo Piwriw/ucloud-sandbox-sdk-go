@@ -1,0 +1,11 @@
+# Generated client for the control-plane API.
+# Types come from api.models.cfg.yaml, which writes into the same package.
+#
+# The input spec and the output path are passed on the command line; see the
+# note in api.models.cfg.yaml.
+package: api
+generate:
+  client: true
+  embedded-spec: false
+output-options:
+  skip-prune: true

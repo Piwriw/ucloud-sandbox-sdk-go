@@ -1,0 +1,12 @@
+# Generated client for envd's HTTP surface (/health, /metrics, /envs, /files).
+# Source spec lives in the e2b-runtime submodule; see pkg/envd/README.md.
+#
+# The input spec and the output path are passed on the command line; see the
+# note in api.models.cfg.yaml.
+package: api
+generate:
+  models: true
+  client: true
+  embedded-spec: false
+output-options:
+  skip-prune: true

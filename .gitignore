@@ -2,3 +2,6 @@
 coverage.out
 .idea/
 .vscode/
+
+# Generator binaries, if anyone builds them locally
+tools/bin/
