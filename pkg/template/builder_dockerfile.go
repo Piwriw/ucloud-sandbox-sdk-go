@@ -55,9 +55,11 @@ func (b *Builder) ToDockerfile() (string, error) {
 
 		case InstructionArg:
 			if len(inst.Args) > 0 {
-				buf.WriteString("ARG " + inst.Args[0])
+				buf.WriteString("ARG ")
+				buf.WriteString(inst.Args[0])
 				if len(inst.Args) > 1 {
-					buf.WriteString("=" + inst.Args[1])
+					buf.WriteString("=")
+					buf.WriteString(inst.Args[1])
 				}
 				buf.WriteString("\n")
 			}
