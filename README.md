@@ -86,30 +86,6 @@ c, err := client.New(client.Options{
 | [`pkg/transport`](pkg/transport) | HTTP plumbing. Rarely used directly. |
 | [`pkg/api`](pkg/api), [`pkg/envd`](pkg/envd) | Generated clients. See below. |
 
-### Conventions
-
-Required arguments are positional; optional ones go in a struct whose zero value
-means "defaults":
-
-```go
-sbx, err := c.Sandboxes().Create(ctx, sandbox.CreateOptions{TimeoutSeconds: 3600})
-out, err := sbx.Commands.Run(ctx, "ls", sandbox.CommandOptions{})
-```
-
-A field that must distinguish "unset" from a zero value is a pointer; `new`
-builds one:
-
-```go
-sbx.Pause(ctx, sandbox.PauseOptions{Memory: new(false)})
-```
-
-Durations that travel to the server are named `...Seconds` and are plain ints,
-so `3600` means an hour rather than 3.6 microseconds.
-
-Where an endpoint has versions, the method carries the version and only the
-newest is exposed: `Sandboxes().ListV2`, `Templates().CreateV3`. Deprecated
-versions are reachable through `pkg/api` if you need them.
-
 ### Errors
 
 Every failure, whether it came over HTTP or over envd's RPC, lands on the same
@@ -122,15 +98,6 @@ var exit *errdefs.CommandExitError
 if errors.As(err, &exit) {
 	log.Print(exit.Stderr)
 }
-```
-
-### Endpoints this SDK does not wrap
-
-Teams, API keys and the admin surface are generated but not wrapped. Reach them
-through the generated client, whose method names come from the generator:
-
-```go
-resp, err := c.API().GetTeamsWithResponse(ctx)
 ```
 
 ## Development
@@ -151,51 +118,6 @@ The generated code is committed, so `go get` works without any of this.
 `submodules/` and pinned to a tag; see [`pkg/envd/README.md`](pkg/envd/README.md).
 `submodules/ucloud-sandbox-sdk-python` is the Python SDK, kept only as a
 reference for behaviour the two should share.
-
-## Migrating from v0.2
-
-v0.3 is a rewrite. Everything moved out of the root package, and functional
-options are gone.
-
-```go
-// v0.2
-c := sandbox.NewClient("cn-wlcb.sandbox.ucloudai.com", apiKey)
-sbx, err := c.CreateSandbox(ctx, sandbox.WithTemplate("base"), sandbox.WithTimeout(300))
-out, err := sbx.Commands.Run(ctx, "ls", sandbox.WithCwd("/app"))
-
-// v0.3
-c, err := client.New(client.Options{APIKey: apiKey, Region: "cn-wlcb"})
-sbx, err := c.Sandboxes().Create(ctx, sandbox.CreateOptions{Template: "base", TimeoutSeconds: 300})
-out, err := sbx.Commands.Run(ctx, "ls", sandbox.CommandOptions{Cwd: "/app"})
-```
-
-Renames worth knowing:
-
-| v0.2 | v0.3 |
-| --- | --- |
-| `sandbox.NewClient(domain, key)` | `client.New(client.Options{...})`, returns an error |
-| `client.CreateSandbox` | `c.Sandboxes().Create` |
-| `client.ListSandboxes` | `c.Sandboxes().ListV2` |
-| `client.GetSandboxLogs` | `c.Sandboxes().LogsV2` |
-| `client.BuildTemplate` | `c.Templates().Build` |
-| `client.ListTemplates` | `c.Templates().ListV2` |
-| `client.CreateVolume` | `c.Volumes().Create` |
-| `sandbox.NewTemplate()` | `c.Templates().NewBuilder(...)` |
-| `WithXxx(v)` options | `XxxOptions{Xxx: v}` structs |
-
-Three behaviour changes to check before upgrading:
-
-- **TLS verification is on.** v0.2 disabled certificate checking for everyone.
-  If your deployment uses a self-signed certificate, set
-  `client.Options{InsecureSkipTLS: true}` explicitly.
-- **A sandbox created with `AllowInternetAccess: new(false)` now really has no
-  internet access.** v0.2 sent the wrong field name, so the setting was ignored.
-- **Listings paginate.** `ListV2` and `ListSnapshots` follow the cursor;
-  v0.2 stopped after one page.
-
-Dropped: the volume content API (`Volume.ReadFile`, `WriteFile` and friends).
-UCloud does not serve it. Read and write a volume from inside a sandbox that
-mounts it.
 
 ## Licence
 
