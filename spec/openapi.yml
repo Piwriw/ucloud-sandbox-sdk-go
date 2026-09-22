@@ -1,10 +1,12 @@
 openapi: 3.0.0
 info:
   version: 0.1.0
-  title: E2B API
+  title: UCloud Sandbox API
 
 servers:
-  - url: https://api.e2b.app
+  - url: https://api.cn-wlcb.sandbox.ucloudai.com
+  - url: https://api.cn-sh.sandbox.ucloudai.com
+  - url: https://api.us-ca.sandbox.ucloudai.com
 
 components:
   securitySchemes:
